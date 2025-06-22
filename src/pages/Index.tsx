@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,13 +11,171 @@ import { DiffViewer } from "@/components/DiffViewer";
 import { ExportButtons } from "@/components/ExportButtons";
 import { Loader2, FileText, Target, Zap } from "lucide-react";
 
+const GEMINI_MODEL = "gemini-2.0-flash";
+
 const Index = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [originalResume, setOriginalResume] = useState("");
   const [tailoredResume, setTailoredResume] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [apiKey, setApiKey] = useState("");
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
   const { toast } = useToast();
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  const handleGenerateCoverLetter = async () => {
+    if (!jobDescription.trim() || !originalResume.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both job description and resume code.",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    setIsGeneratingCoverLetter(true);
+
+    const coverLetterPrompt = `You are a professional technical recruiter and expert resume writer. Your task is to write a highly tailored, ATS-optimized cover letter for a software engineering role, based on a given job description and the applicant's resume.
+
+Please follow these exact instructions and structure:
+
+INPUTS:
+1. Job Description: ${jobDescription}
+2. Resume: ${originalResume}
+
+OBJECTIVE:
+Generate a concise, compelling, and customized cover letter that directly aligns the applicant's experience with the job requirements. This letter should convince the hiring team that the applicant is a strong fit for the role and company.
+
+STRICT RULES:
+- Do NOT summarize the resume. Instead, **select relevant experiences, skills, and impact** from the resume that align closely with the job description.
+- Use a formal, confident, and human tone — professional but never robotic.
+- Ensure that the content is **clear, easy to read, and ATS-friendly** (avoid graphics, tables, or unusual formatting).
+- Use standard business formatting:
+    • Start with date, recipient name (if known), company, and address (if given)
+    • 3-body paragraph structure:
+        1. Hook + why you're excited about the role/company
+        2. What you bring (highlight 2–3 specific experiences/projects that match the JD)
+        3. Why you're a great long-term fit + your enthusiasm to contribute
+    • Close with a professional sign-off.
+
+REQUIREMENTS:
+- Mention the job title and company name early in the first paragraph
+- Clearly explain how the applicant's background matches key responsibilities or qualifications from the job description
+- Quantify results wherever possible (e.g., "reduced latency by 40%", "built systems used by 500K+ users")
+- Use varied action verbs and avoid generic filler phrases
+- **Highlight key skills and technologies** that align with the job description by wrapping them in double asterisks (e.g., \`**React**\`, \`**Node.js**\`). This will be used for bolding.
+- Limit the length to under 350 words and keep it on one page
+- Avoid repeating bullet points or copy-pasting resume lines
+- Output should be a clean, ready-to-submit plain text cover letter
+
+FINAL OUTPUT FORMAT:
+- Do not include markdown, HTML, or explanation
+- Return **only** the cover letter content (no commentary)
+
+Now, generate the cover letter using the resume and job description provided.`;
+
+    try {
+      const response = await fetch(`/api/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: coverLetterPrompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 8192,
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ message: 'Could not parse error body' }));
+        console.error('API Error Body:', errorBody);
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a bit or check your Google AI Studio account for usage limits.');
+        }
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+        const result = data.candidates[0].content.parts[0].text;
+        
+        const doc = new jsPDF();
+        const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        const FONT_SIZE_NORMAL = 10.5;
+        const FONT_SIZE_HEADER = 14;
+        const LINE_HEIGHT = 6.5;
+        const MARGIN = 20;
+        const usableWidth = doc.internal.pageSize.getWidth() - MARGIN * 2;
+        let yPos = MARGIN;
+
+        // --- Header (Your Name & Info) ---
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(FONT_SIZE_HEADER);
+        doc.text("Kartikey Patel", MARGIN, yPos);
+        yPos += LINE_HEIGHT;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text("Newark, NJ | kartikey.patel1398@gmail.com | (862) 423-7020", MARGIN, yPos);
+        yPos += LINE_HEIGHT * 2; // Extra space after header
+
+        // --- Date ---
+        doc.setFontSize(FONT_SIZE_NORMAL);
+        doc.text(today, MARGIN, yPos);
+        yPos += LINE_HEIGHT * 3;
+
+        // --- Body with Bold Parsing ---
+        const renderTextWithBold = (text: string, startY: number) => {
+          let currentY = startY;
+          const textLines = doc.splitTextToSize(text, usableWidth);
+          doc.setFontSize(FONT_SIZE_NORMAL);
+
+          textLines.forEach((line: string) => {
+            if (currentY > 280) { // Primitive page break check
+              return;
+            }
+            let currentX = MARGIN;
+            const parts = line.split('**');
+
+            parts.forEach((part, index) => {
+              const isBold = index % 2 === 1;
+              doc.setFont("helvetica", isBold ? "bold" : "normal");
+              doc.text(part, currentX, currentY);
+              currentX += doc.getStringUnitWidth(part) * doc.getFontSize() / doc.internal.scaleFactor;
+            });
+            currentY += LINE_HEIGHT;
+          });
+          return currentY;
+        };
+
+        renderTextWithBold(result, yPos);
+        
+        doc.save('Kartikey Patel - Cover Letter.pdf');
+
+        toast({
+          title: "Cover Letter Generated!",
+          description: "Your cover letter has been downloaded.",
+        });
+      } else {
+        throw new Error("Unexpected API response format");
+      }
+    } catch (error: any) {
+      console.error('Error generating cover letter:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate cover letter.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingCoverLetter(false);
+    }
+  };
 
   const handleTailorResume = async () => {
     if (!jobDescription.trim() || !originalResume.trim()) {
@@ -29,10 +187,10 @@ const Index = () => {
       return;
     }
 
-    if (!apiKey.trim()) {
+    if (!apiKey || !apiKey.trim()) {
       toast({
-        title: "API Key Required",
-        description: "Please enter your Gemini API key.",
+        title: "API Key Missing",
+        description: "Please set your VITE_GEMINI_API_KEY in .env.local file.",
         variant: "destructive",
       });
       return;
@@ -40,30 +198,14 @@ const Index = () => {
 
     setIsLoading(true);
     
-    const prompt = `You are an expert technical resume editor and a master of LaTeX, specializing in the X-Y-Z framework for crafting compelling, quantified achievements.
+    const prompt = `You are an expert technical resume editor and a master of LaTeX. Your task is to revise the 'Work Experience', 'Technologies/Skills', and 'Projects' sections of the provided LaTeX resume to perfectly align with the target job description.
 
-Your Task: Revise the 'Work Experience', 'Technologies/Skills', and 'Projects' sections of the provided LaTeX resume to perfectly align with the target job description. You must follow these strict rules:
-
-Rule 1: Apply the X-Y-Z Formula
-Every bullet must follow the format:
-Accomplished [X] as measured by [Y], by doing [Z]
-
-Example: Reduced application response times (X) by 30% (Y) by engineering Python Flask APIs and deploying them on AWS Lambda (Z).
-
-Rule 2: Quantify Everything
-Every bullet point must include a quantifiable metric (%, users, time, $).
-
-Rule 3: Only Edit Specified Sections
-- Modify only 'Work Experience', 'Technologies/Skills', and 'Projects'.
-- In Technologies/Skills, add missing keywords relevant to the JD. Do not remove existing ones.
-- Do not touch Education, Summary, Contact, or any layout/formatting code.
-
-Rule 4: Preserve LaTeX Formatting & One-Page Layout
-- Do not change any LaTeX structure, commands, or formatting.
-- Output must be valid LaTeX code that compiles without errors.
-
-Rule 5: Output Format
-Only return the final updated LaTeX code. No markdown, no comments, no explanations.
+Follow these strict rules:
+1.  **Edit, Do Not Invent:** Work strictly with the content provided. Do not invent new job roles or experiences.
+2.  **Quantify Achievements:** Every bullet point must include a specific, quantifiable metric (e.g., percentage improvements, number of users, time saved).
+3.  **Revise All Sections:** You must revise all three sections: 'Work Experience', 'Technologies/Skills', and 'Projects'.
+4.  **Preserve LaTeX:** Do not alter any LaTeX structure, formatting commands, or layout.
+5.  **Output Raw Text:** Return only the complete, updated LaTeX resume code. Do not include markdown, explanations, or any extra text.
 
 Job Description:
 ${jobDescription}
@@ -72,7 +214,7 @@ LaTeX Resume:
 ${originalResume}`;
 
     try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=' + apiKey, {
+      const response = await fetch(`/api/v1beta/models/${GEMINI_MODEL}:generateContent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,20 +227,27 @@ ${originalResume}`;
           }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 4096,
+            maxOutputTokens: 8192,
           }
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+        const errorBody = await response.json().catch(() => ({ message: 'Could not parse error body' }));
+        console.error('API Error Body:', errorBody);
+
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a bit or check your Google AI Studio account for usage limits.');
+        }
+
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       
-      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-        const result = data.candidates[0].content.parts[0].text;
-        setTailoredResume(result);
+      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (resultText) {
+        setTailoredResume(resultText);
         toast({
           title: "Resume Tailored Successfully!",
           description: "Your resume has been optimized for the job description.",
@@ -106,11 +255,11 @@ ${originalResume}`;
       } else {
         throw new Error("Unexpected API response format");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error tailoring resume:', error);
       toast({
         title: "Error",
-        description: "Failed to tailor resume. Please check your API key and try again.",
+        description: error.message || "Failed to tailor resume. Please check your API key and try again.",
         variant: "destructive",
       });
     } finally {
@@ -129,7 +278,7 @@ ${originalResume}`;
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Resume Tailor Pro</h1>
-              <p className="text-gray-600 mt-1">AI-powered LaTeX resume optimization using Gemini 1.5 Pro</p>
+              <p className="text-gray-600 mt-1">AI-powered LaTeX resume optimization using {GEMINI_MODEL}</p>
             </div>
           </div>
         </div>
@@ -137,33 +286,36 @@ ${originalResume}`;
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* API Key Input */}
-        <Card className="mb-8 border-amber-200 bg-amber-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center space-x-2">
-              <Zap className="h-5 w-5 text-amber-600" />
-              <span>Gemini API Key</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Enter your Gemini API key here..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="min-h-[60px] bg-white border-amber-200 focus:border-amber-400"
-            />
-            <p className="text-sm text-amber-700 mt-2">
-              Get your free API key from{" "}
-              <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="underline hover:text-amber-800"
-              >
-                Google AI Studio
-              </a>
-            </p>
-          </CardContent>
-        </Card>
+        {(!apiKey || apiKey === "PASTE_YOUR_GEMINI_API_KEY_HERE") && (
+          <Card className="mb-8 border-amber-200 bg-amber-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center space-x-2">
+                <Zap className="h-5 w-5 text-amber-600" />
+                <span>Gemini API Key</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-amber-700 mt-2">
+                This app uses the Gemini API. Please set your API key in a <code>.env.local</code> file in the root of the project.
+                <br />
+                Create a file named <code>.env.local</code> and add the following line:
+                <br />
+                <code className="bg-amber-100 p-1 rounded">VITE_GEMINI_API_KEY=YOUR_API_KEY_HERE</code>
+              </p>
+              <p className="text-sm text-amber-700 mt-2">
+                Get your free API key from{" "}
+                <a 
+                  href="https://aistudio.google.com/app/apikey" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="underline hover:text-amber-800"
+                >
+                  Google AI Studio
+                </a>
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Job Description Input */}
@@ -209,11 +361,11 @@ ${originalResume}`;
           </Card>
         </div>
 
-        {/* Tailor Button */}
-        <div className="text-center mb-8">
+        {/* Action Buttons */}
+        <div className="text-center mb-8 flex justify-center items-center gap-4">
           <Button
             onClick={handleTailorResume}
-            disabled={isLoading}
+            disabled={isLoading || isGeneratingCoverLetter}
             size="lg"
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
           >
@@ -229,47 +381,68 @@ ${originalResume}`;
               </>
             )}
           </Button>
+
+          <Button
+            onClick={handleGenerateCoverLetter}
+            disabled={isLoading || isGeneratingCoverLetter}
+            size="lg"
+            className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            {isGeneratingCoverLetter ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="mr-2 h-5 w-5" />
+                Generate Cover Letter
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Results Section */}
         {tailoredResume && (
-          <Card className="shadow-xl border-0">
-            <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">Updated LaTeX Resume Code</CardTitle>
-                <Badge variant="secondary" className="bg-white text-green-600">
-                  Optimized
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Tabs defaultValue="result" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 rounded-none">
-                  <TabsTrigger value="result">Final Result</TabsTrigger>
-                  <TabsTrigger value="diff">Before & After</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="result" className="p-6">
-                  <div className="space-y-4">
-                    <ExportButtons content={tailoredResume} filename="tailored-resume" />
-                    <Separator />
-                    <div className="bg-gray-50 rounded-lg p-4 border">
-                      <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-96 overflow-y-auto">
-                        {tailoredResume}
-                      </pre>
+          <>
+            <Card className="shadow-xl border-0 mb-8">
+              <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">Updated LaTeX Resume Code</CardTitle>
+                  <Badge variant="secondary" className="bg-white text-green-600">
+                    Optimized
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Tabs defaultValue="result" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 rounded-none">
+                    <TabsTrigger value="result">Final Result</TabsTrigger>
+                    <TabsTrigger value="diff">Before & After</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="result" className="p-6">
+                    <div className="space-y-4">
+                      <ExportButtons content={tailoredResume} filename="tailored-resume" />
+                      <Separator />
+                      <div className="bg-gray-50 rounded-lg p-4 border">
+                        <pre className="whitespace-pre-wrap text-sm font-mono text-gray-800 max-h-96 overflow-y-auto">
+                          {tailoredResume}
+                        </pre>
+                      </div>
                     </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="diff" className="p-6">
-                  <DiffViewer 
-                    original={originalResume} 
-                    modified={tailoredResume}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="diff" className="p-6">
+                    <DiffViewer 
+                      original={originalResume} 
+                      modified={tailoredResume}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* Features */}
