@@ -1,14 +1,15 @@
 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Download } from "lucide-react";
+import { Copy, Download, FileDown } from "lucide-react";
 
 interface ExportButtonsProps {
   content: string;
   filename: string;
+  onGeneratePDF?: () => void;
 }
 
-export const ExportButtons = ({ content, filename }: ExportButtonsProps) => {
+export const ExportButtons = ({ content, filename, onGeneratePDF }: ExportButtonsProps) => {
   const { toast } = useToast();
 
   const copyToClipboard = async () => {
@@ -74,6 +75,17 @@ export const ExportButtons = ({ content, filename }: ExportButtonsProps) => {
         <Download className="h-4 w-4" />
         <span>Export .tex</span>
       </Button>
+      {onGeneratePDF && (
+        <Button
+          onClick={onGeneratePDF}
+          variant="default"
+          size="sm"
+          className="flex items-center space-x-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+        >
+          <FileDown className="h-4 w-4" />
+          <span>Download PDF</span>
+        </Button>
+      )}
     </div>
   );
 };

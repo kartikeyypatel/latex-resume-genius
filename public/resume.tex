@@ -1,0 +1,140 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ATS-Friendly One-Page Resume (Final Compact Version)
+%
+% This template has been updated to prevent single-word line wraps
+% by widening the text area and carefully trimming content for conciseness.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[10pt, a4paper]{article}
+
+% --- PACKAGES ---
+\usepackage[utf8]{inputenc}
+\usepackage[left=0.45in, right=0.45in, top=0.4in, bottom=0.4in]{geometry} % Wider text area
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+
+% --- FORMATTING ---
+\pagestyle{empty} % No page numbers
+\setlength{\parindent}{0pt} % No paragraph indentation
+
+% Define colors and links
+\hypersetup{
+    colorlinks=true,
+    urlcolor=blue,
+}
+
+% Format section titles with less space
+\titleformat{\section}{\large\bfseries\scshape}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{3pt}{2pt}
+
+% Make all lists tight
+\setlist[itemize]{leftmargin=*, topsep=2pt, itemsep=0pt, parsep=2pt}
+
+
+% --- DOCUMENT START ---
+\begin{document}
+
+% --- HEADER ---
+\begin{center}
+    \textbf{\huge TANMAY KAPURE}
+    \vspace{3pt}
+    
+    tk427@njit.edu $\cdot$ +1 (862) 405-2014 $\cdot$ \href{https://www.linkedin.com/in/tanmay-kapure/}{linkedin/tanmay-kapure} $\cdot$ \href{https://tanmaysk001.github.io/tanmaykapure.github.io/}{Personal Website} $\cdot$ New York, NY, USA
+\end{center}
+
+
+% --- SUMMARY ---
+\section*{Summary}
+AI Engineer with hands-on expertise in building end-to-end production grade ML pipelines, fine-tuning and optimizing LLMs, and developing AI agents with cutting-edge frameworks, backed by strong collaboration and team leadership skills.
+
+\vspace{2pt}
+% --- TECHNICAL SKILLS ---
+\section*{Technical Skills}
+\noindent\textbf{Programming Languages:} Python, SQL, JavaScript, R, Go  \\
+\textbf{Frameworks \& Packages:} PySpark, TensorFlow, Keras, Pytorch, Hugging Face, Django, FastAPI, LangChain, LangFlow, Langgraph, NextJS  \\
+\textbf{Tools \& Platforms:} Kafka, Airflow, Azure, AWS, Docker, Tableau, PowerBI, Git, Excel, MySQL, PineCone DB, Firebase, Supabase
+
+\vspace{2pt}
+% --- WORK EXPERIENCE ---
+\section*{Work Experience}
+\vspace{2pt}
+
+\textbf{Machine Learning Engineer} \hfill Oct 2024 – Present \\
+\textit{New Jersey Institute of Technology (NJIT) - U.S. Army-Funded Research} \hfill Newark, USA
+\begin{itemize}
+    \item Developed deep learning models to predict metal fatigue strength, incorporating advanced architectures like Transformers.
+    \item Improved prediction accuracy, reducing Mean Relative Error (MRE) from 140 \% to 60 \%. 
+    \item Implemented state-of-the-art deep learning research for fatigue strength prediction. 
+\end{itemize}
+\vspace{2pt} % Reduce space between entries
+
+\textbf{Research Assistant} \hfill Mar 2024 – Oct 2024 \\
+\textit{Center of Solar and Terrestrial Research, NJIT - NASA \& NSF Funded Projects} \hfill Newark, USA
+\begin{itemize}
+    \item Transformed 500,000+ raw solar surface images using advanced image processing into 500+ high quality videos.
+    \item Collaborated with a multidisciplinary team of 15+ researchers to facilitate extraction of solar imagery information. 
+    \item Conducted testing, debugging, and code integration for parallel ray tracing simulations on an HPC cluster. 
+\end{itemize}
+\vspace{2pt} % Reduce space between entries
+
+\textbf{Machine Learning Intern} \hfill March 2023 - August 2023 \\
+\textit{Everlytics Data Science Pvt Ltd.} \hfill Bengaluru, India
+\begin{itemize}
+    \item Implemented an AWS Glue job scheduling pipeline, increasing the efficiency of data extraction by 30\%.
+    \item Deployed a robust Isolation Forest anomaly detection model, mitigating 95\% of anomalies and 25 \% of false positives. 
+    \item Optimized Apache Airflow data pipelines, processing ~1M rows/week and improving reliability 20\% with MLOps. 
+\end{itemize}
+\vspace{2pt} % Reduce space between entries
+
+\textbf{Data Science Intern} \hfill Nov 2022 – Mar 2023 \\
+\textit{Jubilant Biosys Ltd.} \hfill Bengaluru, India
+\begin{itemize}
+    \item Optimized forecasting models (Random Forest, ARIMA) to 91\% accuracy, cutting overstocking by 20 \% and understocking by 15\%.
+    \item Designed 5 interactive Tableau dashboards, increasing data visibility by 40 \% and enabling real-time KPI tracking. 
+    \item Executed A/B testing to optimize inventory strategies, reducing stockouts by 10\% and improving order fulfillment 5\%. . 
+\end{itemize}
+
+\vspace{4pt}
+
+% --- RELEVANT PROJECTS ---
+\section*{Relevant Projects}
+\vspace{2pt}
+\textbf{RAG based AI Chatbot for Intelligent Document Retrieval} \hfill \href{https://huggingface.co/spaces/Tsk001/RAG_Gradio_App}{Live Project Link}
+\begin{itemize}
+    \item Built an end-to-end RAG system with LangChain, FastAPI, and Pinecone to enable context-aware LLM responses.
+    \item Enhanced document processing and chunking using sentence transformers and created a Gradio webapp for interaction. 
+    \item Orchestrated the webapp on Hugging Face Spaces with Docker \& CI/CD for scalability and real-time query handling. 
+\end{itemize}
+\vspace{2pt}
+
+\textbf{Browser AI Agent} \hfill \href{https://github.com/tanmaysk001/Browser-Agent}{Live Project Link}
+\begin{itemize}
+    \item Created a browser agent using Langgraph, Gemini, and Playwright to navigate and extract info from web pages. 
+    \item Features captcha bypass, website scraping, and a Human in the Loop capability to fulfill browser tasks. 
+    \item Smart LLM assisted navigation to successfully handle dynamically changing web layouts
+\end{itemize}
+\vspace{2pt}
+
+\textbf{Voice AI Interview Assistant} \hfill \href{https://github.com/tanmaysk001/Interview-AI}{Live Project Link}
+\begin{itemize}
+    \item Developed a full-stack Voice AI agent to simulate mock interviews using VAPI AI and Gemini APIs.
+    \item Intelligent chatbot that provides performance-based feedback to aid interview preparation. 
+    \item Responsive frontend based on Next.js and Tailwind CSS, while PostgreSQL for database and Firebase for authentication, hosted on Vercel. 
+\end{itemize}
+
+\vspace{4pt}
+% --- EDUCATION ---
+\section*{Education}
+
+\textbf{MS in Data Science (GPA: 3.91)} \hfill Sep 2023 – May 2025 \\
+\textit{New Jersey Institute of Technology} \hfill Newark, USA \\
+\textsc{}{ Statistical modeling, Supply Chain Management (SCM), Data mining, Deep Learning in Finance, Big Data analytics}
+
+\vspace{2pt}
+
+\textbf{B.Tech in Artificial Intelligence (GPA: 3.76)} \hfill Aug 2019 – June 2023 \\
+\textit{Nagpur University} \hfill Nagpur, India \\
+\textsc{}{ DSA, DBMS, Software Engineering, Machine Learning, Computer Vision, Natural Language Processing, AI Analytics}
+
+\end{document}
